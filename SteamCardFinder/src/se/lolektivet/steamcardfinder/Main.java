@@ -339,6 +339,10 @@ public class Main {
       if (overStockedGames > 0) {
          logger.info("WARNING! The following of your games have overstocked cards in inventory!");
          myGamesWithInfo.forEach(this::printOverstocked);
+         int ownedWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyAmount(game) * getCardPrice(game)).sum();
+         logger.info("");
+         logger.info("Worth of owned cards guaranteed not to be overstocked: " + ownedWorthNoOverstocked);
+
       } else {
          logger.info("None of your cards are overstocked.");
       }
