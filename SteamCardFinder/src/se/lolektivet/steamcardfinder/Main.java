@@ -62,6 +62,7 @@ public class Main {
    private static final String PROP_GAME_MAX_CARD_STOCK = "maxCardStock";
    private static final String PROP_GAME_SET_PRICE = "setPrice";
    private static final String PROP_GAME_MY_AMOUNT = "myAmount";
+   private static final String PROP_GAME_MY_DROPS = "myDrops";
 
    private static Logger logger = Logger.getLogger(Main.class.getName());
 
@@ -301,7 +302,9 @@ public class Main {
                   .map(game -> mergeGames(game, myGame)))
             .collect(Collectors.toList());
 
-      int totalWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyAmount(game) * getCardPrice(game))).sum();
+      int ownedWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyAmount(game) * getCardPrice(game))).sum();
+      int dropsWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyDrops(game) * getCardPrice(game))).sum();
+      int totalWorth = ownedWorth + dropsWorth;
 
       // TODO: Warn about possibly overstocked cards. Will not be precise based on the info we have,
       // but good enough to warn when "maxCardStock" is 8.
@@ -311,12 +314,18 @@ public class Main {
       logger.info("----------------------------- My Game Card Summary -----------------------------");
       logger.info("[(Set) Worth * Cards = Total - Name]");
       logger.info("");
-      myGamesWithInfo.forEach(this::printMyGame);
-      logger.info("Total worth: " + totalWorth);
+      logger.info("--OWNED CARDS: " + ownedWorth);
+      myGamesWithInfo.forEach(this::printMyOwned);
+      logger.info("");
+      logger.info("--REMAINING DROPS: " + dropsWorth);
+      myGamesWithInfo.forEach(this::printMyDrops);
+      logger.info("");
+      logger.info("--TOTAL: " + totalWorth);
    }
 
    private JsonObject mergeGames(JsonObject game, JsonObject myGame) {
       game.addProperty(PROP_GAME_MY_AMOUNT, getMyAmount(myGame));
+      game.addProperty(PROP_GAME_MY_DROPS, getMyDrops(myGame));
       return game;
    }
 
@@ -325,32 +334,47 @@ public class Main {
    }
 
    private JsonObject lineToGame(String line) {
-      int colonPos = line.indexOf(':');
-      if (colonPos <= 0) {
+      int colonPos1 = line.indexOf(':');
+      if (colonPos1 <= 0) {
          return null;
       }
-      int amount = Integer.parseInt(line.substring(0, colonPos));
+      int amount = Integer.parseInt(line.substring(0, colonPos1));
       if (amount < 0) {
          return null;
       }
-      String name = line.substring(colonPos + 1);
+      int colonPos2 = line.indexOf(':', colonPos1 + 1);
+      int drops = Integer.parseInt(line.substring(colonPos1 + 1, colonPos2));
+      if (drops < 0) {
+         return null;
+      }
+      String name = line.substring(colonPos2 + 1);
       if (name.isEmpty()) {
          return null;
       }
       JsonObject game = new JsonObject();
       game.addProperty(PROP_GAME_NAME, name);
       game.addProperty(PROP_GAME_MY_AMOUNT, amount);
+      game.addProperty(PROP_GAME_MY_DROPS, drops);
       return game;
    }
 
-   private void printMyGame(JsonObject game) {
+   private void printMyOwned(JsonObject game) {
       int myAmount = getMyAmount(game);
+      printMyGame(game, myAmount);
+   }
+
+   private void printMyDrops(JsonObject game) {
+      int myDrops = getMyDrops(game);
+      printMyGame(game, myDrops);
+   }
+
+   private void printMyGame(JsonObject game, int amount) {
       int price = getCardPrice(game);
-      if (myAmount > 0) {
+      if (amount > 0) {
          logger.info("(" + pad(getSetPrice(game), 3) + ") " +
-               pad(price, 3) + " * " +
-               pad(myAmount, 2) + " = " +
-               pad(myAmount * price, 4) + " - " + getGameName(game));
+               pad(amount, 2) + " * " +
+               pad(price, 3) + " = " +
+               pad(amount * price, 4) + " - " + getGameName(game));
       }
    }
 
@@ -366,6 +390,10 @@ public class Main {
 
    private int getMyAmount(JsonObject game) {
       return game.get(PROP_GAME_MY_AMOUNT).getAsInt();
+   }
+
+   private int getMyDrops(JsonObject game) {
+      return game.get(PROP_GAME_MY_DROPS).getAsInt();
    }
 
    private int getCardPrice(JsonObject game) {
