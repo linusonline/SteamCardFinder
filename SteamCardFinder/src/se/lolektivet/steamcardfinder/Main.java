@@ -314,13 +314,44 @@ public class Main {
       logger.info("----------------------------- My Game Card Summary -----------------------------");
       logger.info("[(Set) Worth * Cards = Total - Name]");
       logger.info("");
-      logger.info("--OWNED CARDS: " + ownedWorth);
-      myGamesWithInfo.forEach(this::printMyOwned);
+      if (totalWorth > 0) {
+         if (ownedWorth > 0) {
+            logger.info("--OWNED CARDS: " + ownedWorth);
+            myGamesWithInfo.forEach(this::printMyOwned);
+         } else {
+            logger.info("--NO OWNED CARDS");
+         }
+         logger.info("");
+         if (dropsWorth > 0) {
+            logger.info("--REMAINING DROPS: " + dropsWorth);
+            myGamesWithInfo.forEach(this::printMyDrops);
+         } else {
+            logger.info("--NO REMAINING DROPS");
+         }
+         logger.info("");
+         logger.info("--TOTAL: " + totalWorth);
+      } else {
+         logger.info("NO CARDS OR DROPS");
+      }
+
+      long overStockedGames = myGamesWithInfo.stream().filter(this::isOverstocked).count();
       logger.info("");
-      logger.info("--REMAINING DROPS: " + dropsWorth);
-      myGamesWithInfo.forEach(this::printMyDrops);
-      logger.info("");
-      logger.info("--TOTAL: " + totalWorth);
+      if (overStockedGames > 0) {
+         logger.info("WARNING! The following of your games have overstocked cards in inventory!");
+         myGamesWithInfo.forEach(this::printOverstocked);
+      } else {
+         logger.info("None of your cards are overstocked.");
+      }
+   }
+
+   private void printOverstocked(JsonObject game) {
+      if (isOverstocked(game)) {
+         logger.info(getGameName(game));
+      }
+   }
+
+   private boolean isOverstocked(JsonObject game) {
+      return getMyAmount(game) > 0 && game.get(PROP_GAME_MAX_CARD_STOCK).getAsInt() >= 8;
    }
 
    private JsonObject mergeGames(JsonObject game, JsonObject myGame) {
