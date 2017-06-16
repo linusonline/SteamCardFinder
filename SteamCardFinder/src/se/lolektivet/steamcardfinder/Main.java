@@ -50,23 +50,15 @@ public class Main {
    private static final String DEFAULT_MY_CARDS_FILE = "mycards.txt";
    private static final String DEFAULT_EXCLUDED_CARDS_FILE = "excluded.txt";
 
-   private static final String INVENTORY_URL = "http://www.steamcardexchange.net/index.php?inventory";
+   private static final String INVENTORY_URL = "http://www.steamcardexchange.net/api/request.php?GetInventory";
 
    private static final String PROP_GAME_NAME = "name";
-   private static final String PROP_GAME_ID = "id";
-   private static final String PROP_GAME_CARDPRICE = "cardPrice";
-   private static final String PROP_GAME_CARDS_IN_SET = "cardsInSeries";
-   private static final String PROP_GAME_CARDS_IN_STOCK = "cardsInStock";
-   private static final String PROP_GAME_UNIQUE_IN_STOCK = "uniqueInStock";
-   private static final String PROP_GAME_SETS_IN_STOCK = "setsInStock";
-   private static final String PROP_GAME_MAX_CARD_STOCK = "maxCardStock";
-   private static final String PROP_GAME_SET_PRICE = "setPrice";
    private static final String PROP_GAME_MY_AMOUNT = "myAmount";
    private static final String PROP_GAME_MY_DROPS = "myDrops";
 
    private static Logger logger = Logger.getLogger(Main.class.getName());
 
-   private final List<JsonObject> allGames = new ArrayList<>();
+   private final List<JsonElement> allGames = new ArrayList<>();
 
    private CommandLine _commandLine;
    private Options _options;
@@ -192,57 +184,18 @@ public class Main {
    private void doParseByHand(String fullContent) {
       allGames.clear();
 
-      logger.config("Parsing input page...");
-      int gamePricesStart = fullContent.indexOf("var gameprices=") + 15;
-      int gamePricesEnd = fullContent.indexOf(";", gamePricesStart);
-      String gamePricesString = fullContent.substring(gamePricesStart, gamePricesEnd);
-
-      int stockListStart = fullContent.indexOf("var stocklist=") + 14;
-      int stockListEnd = fullContent.indexOf(";", stockListStart);
-      String stockListString = fullContent.substring(stockListStart, stockListEnd);
-
-      int nameListStart = fullContent.indexOf("></option>") + 12;
-      int nameListEnd = fullContent.indexOf("</select>", nameListStart);
-      String nameList = fullContent.substring(nameListStart, nameListEnd);
+      logger.config("Parsing input JSON...");
 
       JsonParser jsonParser = new JsonParser();
-      JsonObject gamePricesJson = jsonParser.parse(gamePricesString).getAsJsonObject();
+      JsonArray rawGames = jsonParser.parse(fullContent).getAsJsonObject().get("data").getAsJsonArray();
 
-      JsonObject stockListJson = jsonParser.parse(stockListString).getAsJsonObject();
-
-      logger.config(gamePricesJson.size() + " games with card price.");
-      logger.config(stockListJson.size() + " games with stock info.");
+      logger.config(rawGames.size() + " games in inventory.");
       logger.config("Analyzing...");
-      for (Map.Entry<String, JsonElement> entry : gamePricesJson.entrySet()) {
-         JsonObject game = new JsonObject();
-         String id = entry.getKey();
-         game.addProperty(PROP_GAME_ID, id);
-         game.addProperty(PROP_GAME_CARDPRICE, entry.getValue().getAsString());
-
-         JsonElement stockInfoElement = stockListJson.get(id);
-         if (stockInfoElement != null) {
-            JsonArray stockInfo = stockInfoElement.getAsJsonArray();
-
-            int cardsInSeries = stockInfo.get(0).getAsInt();
-            int uniqueInStock = stockInfo.get(2).getAsInt();
-            game.addProperty(PROP_GAME_CARDS_IN_SET, cardsInSeries);
-            game.addProperty(PROP_GAME_CARDS_IN_STOCK, stockInfo.get(1).getAsString());
-            game.addProperty(PROP_GAME_UNIQUE_IN_STOCK, uniqueInStock);
-            game.addProperty(PROP_GAME_SETS_IN_STOCK, uniqueInStock < cardsInSeries ? 0 : stockInfo.get(3).getAsInt());
-            game.addProperty(PROP_GAME_MAX_CARD_STOCK, stockInfo.get(4).getAsString());
-
-            game.addProperty(PROP_GAME_SET_PRICE, entry.getValue().getAsInt() * stockInfo.get(0).getAsInt());
-
-            int gameNameStart = nameList.indexOf(">", nameList.indexOf("inventorygame-appid-" + id)) + 1;
-            String gameName = nameList.substring(gameNameStart, nameList.indexOf("<", gameNameStart));
-            if (!gameName.isEmpty()) {
-               game.addProperty(PROP_GAME_NAME, gameName);
-               allGames.add(game);
-            }
-         }
+      for (JsonElement gameElement : rawGames) {
+         allGames.add(gameElement);
       }
 
-      List<JsonObject> sortedRelevantGames = allGames.stream()
+      List<JsonElement> sortedRelevantGames = allGames.stream()
             .filter(this::moreThanOneSet)
             .sorted(this::compareGames)
             .collect(Collectors.toList());
@@ -265,7 +218,7 @@ public class Main {
       logger.info("Total number of games: " + allGames.size());
 
       logger.info("Number of games with more than one full set: " + sortedRelevantGames.size());
-      Stream<JsonObject> finalList = sortedRelevantGames.stream();
+      Stream<JsonElement> finalList = sortedRelevantGames.stream();
       if (_commandLine.hasOption(OPTION_GAME_LIMIT)) {
          int max = Integer.parseInt(_commandLine.getOptionValue(OPTION_GAME_LIMIT));
          logger.info("Limiting list to " + max + " cheapest games.");
@@ -278,23 +231,23 @@ public class Main {
       finalList.forEach(this::printResult);
    }
 
-   private int compareGames(JsonObject game1, JsonObject game2) {
+   private int compareGames(JsonElement game1, JsonElement game2) {
       return Integer.compare(getSetPrice(game1), getSetPrice(game2));
    }
 
-   private boolean moreThanOneSet(JsonObject jsonObject) {
-      return jsonObject.get(PROP_GAME_SETS_IN_STOCK).getAsInt() > 1;
+   private boolean moreThanOneSet(JsonElement game) {
+      return getFullSetsAvailable(game) > 1;
    }
 
-   private void printResult(JsonObject game) {
-      logger.info(game.get(PROP_GAME_CARDS_IN_SET) + " / " + game.get(PROP_GAME_SETS_IN_STOCK) + " / " + getSetPrice(game) + " - " + getGameName(game));
+   private void printResult(JsonElement game) {
+      logger.info(getUniqueCardsInSet(game) + " / " + getFullSetsAvailable(game) + " / " + getSetPrice(game) + " - " + getGameName(game));
    }
 
    private void doAnalyzeMyCards(String fileName) throws FileNotFoundException {
       FileInputStream fis = new FileInputStream(fileName);
       BufferedReader myCardsFile = new BufferedReader(new InputStreamReader(fis));
 
-      List<JsonObject> myGamesWithInfo = myCardsFile.lines()
+      List<JsonElement> myGamesWithInfo = myCardsFile.lines()
             .map(this::lineToGame)
             .filter(Objects::nonNull)
             .flatMap(myGame -> allGames.stream()
@@ -348,24 +301,24 @@ public class Main {
       }
    }
 
-   private void printOverstocked(JsonObject game) {
+   private void printOverstocked(JsonElement game) {
       if (isOverstocked(game)) {
          logger.info(getGameName(game));
       }
    }
 
-   private boolean isOverstocked(JsonObject game) {
-      return getMyAmount(game) > 0 && game.get(PROP_GAME_MAX_CARD_STOCK).getAsInt() >= 8;
+   private boolean isOverstocked(JsonElement game) {
+      return getMyAmount(game) > 0 && getHighestCardStock(game) >= 8;
    }
 
-   private JsonObject mergeGames(JsonObject game, JsonObject myGame) {
-      game.addProperty(PROP_GAME_MY_AMOUNT, getMyAmount(myGame));
-      game.addProperty(PROP_GAME_MY_DROPS, getMyDrops(myGame));
+   private JsonElement mergeGames(JsonElement game, JsonObject myGame) {
+      game.getAsJsonArray().add(myGame.get(PROP_GAME_MY_AMOUNT).getAsInt());
+      game.getAsJsonArray().add(myGame.get(PROP_GAME_MY_DROPS).getAsInt());
       return game;
    }
 
-   private boolean gamesEqual(JsonObject game1, JsonObject game2) {
-      return getGameName(game1).equals(getGameName(game2));
+   private boolean gamesEqual(JsonObject myGame, JsonElement otherGame) {
+      return myGame.get(PROP_GAME_NAME).getAsString().equals(getGameName(otherGame));
    }
 
    private JsonObject lineToGame(String line) {
@@ -393,17 +346,17 @@ public class Main {
       return game;
    }
 
-   private void printMyOwned(JsonObject game) {
+   private void printMyOwned(JsonElement game) {
       int myAmount = getMyAmount(game);
       printMyGame(game, myAmount);
    }
 
-   private void printMyDrops(JsonObject game) {
+   private void printMyDrops(JsonElement game) {
       int myDrops = getMyDrops(game);
       printMyGame(game, myDrops);
    }
 
-   private void printMyGame(JsonObject game, int amount) {
+   private void printMyGame(JsonElement game, int amount) {
       int price = getCardPrice(game);
       if (amount > 0) {
          logger.info("(" + pad(getSetPrice(game), 3) + ") " +
@@ -423,24 +376,50 @@ public class Main {
       return result;
    }
 
-   private int getMyAmount(JsonObject game) {
-      return game.get(PROP_GAME_MY_AMOUNT).getAsInt();
+   private int getMyAmount(JsonElement game) {
+      return game.getAsJsonArray().get(4).getAsInt();
    }
 
-   private int getMyDrops(JsonObject game) {
-      return game.get(PROP_GAME_MY_DROPS).getAsInt();
+   private int getMyDrops(JsonElement game) {
+      return game.getAsJsonArray().get(5).getAsInt();
    }
 
-   private int getCardPrice(JsonObject game) {
-      return game.get(PROP_GAME_CARDPRICE).getAsInt();
+
+
+   private int getSetPrice(JsonElement game) {
+      return getCardPrice(game) * getUniqueCardsInSet(game);
    }
 
-   private int getSetPrice(JsonObject game) {
-      return game.get(PROP_GAME_SET_PRICE).getAsInt();
+   private int getCardPrice(JsonElement game) {
+      return game.getAsJsonArray().get(1).getAsInt();
    }
 
-   private String getGameName(JsonObject game) {
-      return game.get(PROP_GAME_NAME).getAsString();
+   private int getUniqueCardsInSet(JsonElement game) {
+      return game.getAsJsonArray().get(3).getAsJsonArray().get(0).getAsInt();
+   }
+
+   private int getUniqueCardsAvailable(JsonElement game) {
+      return game.getAsJsonArray().get(3).getAsJsonArray().get(1).getAsInt();
+   }
+
+   private int getFullSetsAvailable(JsonElement game) {
+      return game.getAsJsonArray().get(3).getAsJsonArray().get(2).getAsInt();
+   }
+
+   private String getGameName(JsonElement game) {
+      return game.getAsJsonArray().get(0).getAsJsonArray().get(1).getAsString();
+   }
+
+   private int getHighestCardStock(JsonElement game) {
+      return game.getAsJsonArray().get(0).getAsJsonArray().get(2).getAsInt();
+   }
+
+   private int getGameId(JsonElement game) {
+      return game.getAsJsonArray().get(0).getAsJsonArray().get(0).getAsInt();
+   }
+
+   private boolean isMarketable(JsonElement game) {
+      return game.getAsJsonArray().get(0).getAsJsonArray().get(4).getAsInt() != 0;
    }
 
    private void doConnectFail() throws IOException {
