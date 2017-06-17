@@ -232,7 +232,8 @@ public class Main {
    }
 
    private int compareGames(JsonElement game1, JsonElement game2) {
-      return Integer.compare(getSetPrice(game1), getSetPrice(game2));
+      int priceCompare = Integer.compare(getSetPrice(game1), getSetPrice(game2));
+      return priceCompare == 0 ? Integer.compare(getFullSetsAvailable(game2), getFullSetsAvailable(game1)) : priceCompare;
    }
 
    private boolean moreThanOneSet(JsonElement game) {
