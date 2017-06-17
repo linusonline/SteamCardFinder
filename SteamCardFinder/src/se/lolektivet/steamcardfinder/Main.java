@@ -46,7 +46,7 @@ public class Main {
    private static final String OPTION_MY_CARDS_FILE = "d";
    private static final String OPTION_MY_CARDS_FILE_LONG = "cardsfile";
 
-   private static final String DEFAULT_INPUT_FILE = "input.html";
+   private static final String DEFAULT_INPUT_FILE = "input.json";
    private static final String DEFAULT_MY_CARDS_FILE = "mycards.txt";
    private static final String DEFAULT_EXCLUDED_CARDS_FILE = "excluded.txt";
 
@@ -105,7 +105,7 @@ public class Main {
 
       Option myCards = Option.builder(OPTION_MY_CARDS).longOpt(OPTION_MY_CARDS_LONG)
             .desc("Read and summarize list of owned game cards. Each line of the list file should be on the form " +
-                  "'<card-amount>:<game-name>'. Game name must match the name in the online inventory exactly. Default " +
+                  "'<card-amount>:<drop-amount>:<game-name>'. Game name must match the name in the online inventory exactly. Default " +
                   "file to read from is " + DEFAULT_MY_CARDS_FILE).build();
 
       Option myCardsFile = Option.builder(OPTION_MY_CARDS_FILE).longOpt(OPTION_MY_CARDS_FILE_LONG)
@@ -403,7 +403,8 @@ public class Main {
    }
 
    private int getFullSetsAvailable(JsonElement game) {
-      return game.getAsJsonArray().get(3).getAsJsonArray().get(2).getAsInt();
+      return getUniqueCardsAvailable(game) < getUniqueCardsInSet(game) ? 0 :
+      game.getAsJsonArray().get(3).getAsJsonArray().get(2).getAsInt();
    }
 
    private String getGameName(JsonElement game) {
