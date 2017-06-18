@@ -233,7 +233,9 @@ public class Main {
 
    private int compareGames(JsonElement game1, JsonElement game2) {
       int priceCompare = Integer.compare(getSetPrice(game1), getSetPrice(game2));
-      return priceCompare == 0 ? Integer.compare(getFullSetsAvailable(game2), getFullSetsAvailable(game1)) : priceCompare;
+      int setsCompare = Integer.compare(getFullSetsAvailable(game2), getFullSetsAvailable(game1));
+      int setSizeCompare = Integer.compare(getUniqueCardsInSet(game1), getUniqueCardsInSet(game2));
+      return priceCompare == 0 ? (setsCompare == 0 ? setSizeCompare : setsCompare) : priceCompare;
    }
 
    private boolean moreThanOneSet(JsonElement game) {
@@ -266,7 +268,7 @@ public class Main {
 
       logger.info("");
       logger.info("----------------------------- My Game Card Summary -----------------------------");
-      logger.info("[(Set) Worth * Cards = Total - Name]");
+      logger.info("[(Set) Cards * Worth = Total - Name]");
       logger.info("");
       if (totalWorth > 0) {
          if (ownedWorth > 0) {
