@@ -45,6 +45,8 @@ public class Main {
    private static final String OPTION_MY_CARDS_LONG = "cards";
    private static final String OPTION_MY_CARDS_FILE = "d";
    private static final String OPTION_MY_CARDS_FILE_LONG = "cardsfile";
+   private static final String OPTION_MY_CREDITS = "r";
+   private static final String OPTION_MY_CREDITS_LONG = "credits";
 
    private static final String DEFAULT_INPUT_FILE = "input.json";
    private static final String DEFAULT_MY_CARDS_FILE = "mycards.txt";
@@ -112,6 +114,10 @@ public class Main {
             .hasArg().argName("file")
             .desc("Name of the file to read owned game card list from. Default is " + DEFAULT_MY_CARDS_FILE).build();
 
+      Option myCredits = Option.builder(OPTION_MY_CREDITS).longOpt(OPTION_MY_CREDITS_LONG)
+            .hasArg().argName("credit-amount")
+            .desc("Number of credits you already have in your Steam Card Exchange account.").build();
+
       _options = new Options();
 
       _options.addOption(help);
@@ -122,6 +128,7 @@ public class Main {
       _options.addOption(save);
       _options.addOption(myCards);
       _options.addOption(myCardsFile);
+      _options.addOption(myCredits);
    }
 
    private void parseArgs(String[] args) throws ParseException {
@@ -258,9 +265,10 @@ public class Main {
                   .map(game -> mergeGames(game, myGame)))
             .collect(Collectors.toList());
 
+      int credits = Integer.parseInt(_commandLine.getOptionValue(OPTION_MY_CREDITS, "0"));
       int ownedWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyAmount(game) * getCardPrice(game))).sum();
       int dropsWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyDrops(game) * getCardPrice(game))).sum();
-      int totalWorth = ownedWorth + dropsWorth;
+      int totalWorth = ownedWorth + dropsWorth + credits;
 
       // TODO: Warn about possibly overstocked cards. Will not be precise based on the info we have,
       // but good enough to warn when "maxCardStock" is 8.
@@ -272,20 +280,24 @@ public class Main {
       logger.info("");
       if (totalWorth > 0) {
          if (ownedWorth > 0) {
-            logger.info("--OWNED CARDS: " + ownedWorth);
+            logger.info("-- OWNED CARDS: " + ownedWorth);
             myGamesWithInfo.forEach(this::printMyOwned);
          } else {
-            logger.info("--NO OWNED CARDS");
+            logger.info("-- NO OWNED CARDS");
          }
          logger.info("");
          if (dropsWorth > 0) {
-            logger.info("--REMAINING DROPS: " + dropsWorth);
+            logger.info("-- REMAINING DROPS: " + dropsWorth);
             myGamesWithInfo.forEach(this::printMyDrops);
          } else {
-            logger.info("--NO REMAINING DROPS");
+            logger.info("-- NO REMAINING DROPS");
          }
          logger.info("");
-         logger.info("--TOTAL: " + totalWorth);
+         if (credits > 0) {
+            logger.info("-- CREDITS: " + credits);
+            logger.info("");
+         }
+         logger.info("-- TOTAL: " + totalWorth);
       } else {
          logger.info("NO CARDS OR DROPS");
       }
@@ -296,8 +308,12 @@ public class Main {
          logger.info("WARNING! The following of your games have overstocked cards in inventory!");
          myGamesWithInfo.forEach(this::printOverstocked);
          int ownedWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyAmount(game) * getCardPrice(game)).sum();
+         int dropWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyDrops(game) * getCardPrice(game)).sum();
          logger.info("");
-         logger.info("Worth of owned cards guaranteed not to be overstocked: " + ownedWorthNoOverstocked);
+         logger.info("Excluding possibly overstocked cards:");
+         logger.info("Owned card worth: " + ownedWorthNoOverstocked);
+         logger.info("Drops worth: " + dropWorthNoOverstocked);
+         logger.info("Total worth: " + (ownedWorthNoOverstocked + credits));
 
       } else {
          logger.info("None of your cards are overstocked.");
@@ -311,7 +327,7 @@ public class Main {
    }
 
    private boolean isOverstocked(JsonElement game) {
-      return getMyAmount(game) > 0 && getHighestCardStock(game) >= 8;
+      return (getMyAmount(game) > 0 || getMyDrops(game) > 0) && getHighestCardStock(game) >= 8;
    }
 
    private JsonElement mergeGames(JsonElement game, JsonObject myGame) {
