@@ -143,12 +143,16 @@ public class Main {
    }
 
    private void initLogging() {
-      Level level = _commandLine.hasOption(OPTION_VERBOSE) ? Level.ALL : Level.INFO;
+      Level level = _commandLine.hasOption(OPTION_VERBOSE) ? Level.INFO : Level.WARNING;
       LoggingConf.init(false, level);
    }
 
+   private void stdoutln(String message) {
+      System.out.println(message);
+   }
+
    private void printVersionInfo() {
-      logger.info("SteamCardFinder v" + VERSION_STRING);
+      stdoutln("SteamCardFinder v" + VERSION_STRING);
    }
 
    private void run() throws IOException, ParserConfigurationException, SAXException {
@@ -159,10 +163,10 @@ public class Main {
          String fullInput;
          if (_commandLine.hasOption(OPTION_READ_FILE)) {
             String fileName = _commandLine.getOptionValue(OPTION_FILE_NAME, DEFAULT_INPUT_FILE);
-            logger.config("Reading input from " + fileName + "...");
+            logger.info("Reading input from " + fileName + "...");
             fullInput = doReadFile(fileName);
          } else {
-            logger.config("Connecting to " + INVENTORY_URL + "...");
+            logger.info("Connecting to " + INVENTORY_URL + "...");
             fullInput = doConnectAndGet();
             if (_commandLine.hasOption(OPTION_SAVE)) {
                saveInput(fullInput);
@@ -201,13 +205,13 @@ public class Main {
    private void doParseByHand(String fullContent) {
       allGames.clear();
 
-      logger.config("Parsing input JSON...");
+      logger.info("Parsing input JSON...");
 
       JsonParser jsonParser = new JsonParser();
       JsonArray rawGames = jsonParser.parse(fullContent).getAsJsonObject().get("data").getAsJsonArray();
 
-      logger.config(rawGames.size() + " games in inventory.");
-      logger.config("Analyzing...");
+      logger.info(rawGames.size() + " games in inventory.");
+      logger.info("Analyzing...");
       for (JsonElement gameElement : rawGames) {
          allGames.add(gameElement);
       }
@@ -218,6 +222,7 @@ public class Main {
             .collect(Collectors.toList());
 
       try {
+         // TODO: Document this feature.
          FileInputStream fis = new FileInputStream(DEFAULT_EXCLUDED_CARDS_FILE);
          BufferedReader excludesFile = new BufferedReader(new InputStreamReader(fis));
          List<String> excludedGames = excludesFile.lines().collect(Collectors.toList());
@@ -226,25 +231,28 @@ public class Main {
                .collect(Collectors.toList());
 
       } catch (FileNotFoundException e) {
-         logger.config("Could not open excludes file " + DEFAULT_EXCLUDED_CARDS_FILE + ". [" + e.getLocalizedMessage() + "]");
+         logger.info("Could not open excludes file " + DEFAULT_EXCLUDED_CARDS_FILE + ". [" + e.getLocalizedMessage() + "]");
       }
 
 
-      logger.info("");
-      logger.info("---------------------- SteamCardExchange Inventory Summary ---------------------");
-      logger.info("Total number of games: " + allGames.size());
+      stdoutln("");
+      stdoutln("---------------------- SteamCardExchange Inventory Summary --------------------");
+      stdoutln("");
+      stdoutln("Total number of games: " + allGames.size());
 
-      logger.info("Number of games with more than one full set: " + sortedRelevantGames.size());
+      stdoutln("Number of games with more than one full set: " + sortedRelevantGames.size());
       Stream<JsonElement> finalList = sortedRelevantGames.stream();
       if (_commandLine.hasOption(OPTION_GAME_LIMIT)) {
          int max = Integer.parseInt(_commandLine.getOptionValue(OPTION_GAME_LIMIT));
-         logger.info("Limiting list to " + max + " cheapest games.");
+         stdoutln("Limiting list to " + max + " cheapest games.");
          finalList = finalList.limit(max);
       }
-      logger.info("");
-      logger.info("------------------------- Cheapest available Card Sets -------------------------");
-      logger.info("");
-      logger.info("[Setsize / Sets / Cost - Name]");
+      stdoutln("");
+      stdoutln("");
+      stdoutln("");
+      stdoutln("------------------------- Cheapest available Card Sets ------------------------");
+      stdoutln("");
+      stdoutln("[Setsize / Sets / Cost - Name]");
       finalList.forEach(this::printResult);
    }
 
@@ -260,7 +268,7 @@ public class Main {
    }
 
    private void printResult(JsonElement game) {
-      logger.info(getUniqueCardsInSet(game) + " / " + getFullSetsAvailable(game) + " / " + getSetPrice(game) + " - " + getGameName(game));
+      stdoutln(getUniqueCardsInSet(game) + " / " + getFullSetsAvailable(game) + " / " + getSetPrice(game) + " - " + getGameName(game));
    }
 
    private void doAnalyzeMyCards(String fileName) throws FileNotFoundException {
@@ -282,57 +290,60 @@ public class Main {
 
       // TODO: Warn about possibly overstocked cards. Will not be precise based on the info we have,
       // but good enough to warn when "maxCardStock" is 8.
-      //logger.info("Sets you own that have overstocked cards:");
+      //stdoutln("Sets you own that have overstocked cards:");
 
-      logger.info("");
-      logger.info("----------------------------- My Game Card Summary -----------------------------");
-      logger.info("[(Set) Cards * Worth = Total - Name]");
-      logger.info("");
+      stdoutln("");
+      stdoutln("");
+      stdoutln("");
+      stdoutln("----------------------------- My Game Card Summary ----------------------------");
+      stdoutln("");
+      stdoutln("[(Set) Cards * Worth = Total - Name]");
+      stdoutln("");
       if (totalWorth > 0) {
          if (ownedWorth > 0) {
-            logger.info("-- OWNED CARDS: " + ownedWorth);
+            stdoutln("-- OWNED CARDS: " + ownedWorth);
             myGamesWithInfo.forEach(this::printMyOwned);
          } else {
-            logger.info("-- NO OWNED CARDS");
+            stdoutln("-- NO OWNED CARDS");
          }
-         logger.info("");
+         stdoutln("");
          if (dropsWorth > 0) {
-            logger.info("-- REMAINING DROPS: " + dropsWorth);
+            stdoutln("-- REMAINING DROPS: " + dropsWorth);
             myGamesWithInfo.forEach(this::printMyDrops);
          } else {
-            logger.info("-- NO REMAINING DROPS");
+            stdoutln("-- NO REMAINING DROPS");
          }
-         logger.info("");
+         stdoutln("");
          if (credits > 0) {
-            logger.info("-- CREDITS: " + credits);
-            logger.info("");
+            stdoutln("-- CREDITS: " + credits);
+            stdoutln("");
          }
-         logger.info("-- TOTAL: " + totalWorth);
+         stdoutln("-- TOTAL: " + totalWorth);
       } else {
-         logger.info("NO CARDS OR DROPS");
+         stdoutln("NO CARDS OR DROPS");
       }
 
       long overStockedGames = myGamesWithInfo.stream().filter(this::isOverstocked).count();
-      logger.info("");
+      stdoutln("");
       if (overStockedGames > 0) {
-         logger.info("WARNING! The following of your games have overstocked cards in inventory!");
+         stdoutln("WARNING! The following of your games have overstocked cards in inventory!");
          myGamesWithInfo.forEach(this::printOverstocked);
          int ownedWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyAmount(game) * getCardPrice(game)).sum();
          int dropWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyDrops(game) * getCardPrice(game)).sum();
-         logger.info("");
-         logger.info("Excluding possibly overstocked cards:");
-         logger.info("Owned card worth: " + ownedWorthNoOverstocked);
-         logger.info("Drops worth: " + dropWorthNoOverstocked);
-         logger.info("Total worth: " + (ownedWorthNoOverstocked + credits));
+         stdoutln("");
+         stdoutln("Excluding possibly overstocked cards:");
+         stdoutln("Owned card worth: " + ownedWorthNoOverstocked);
+         stdoutln("Drops worth: " + dropWorthNoOverstocked);
+         stdoutln("Total worth: " + (ownedWorthNoOverstocked + credits));
 
       } else {
-         logger.info("None of your cards are overstocked.");
+         stdoutln("None of your cards are overstocked.");
       }
    }
 
    private void printOverstocked(JsonElement game) {
       if (isOverstocked(game)) {
-         logger.info(getGameName(game));
+         stdoutln(getGameName(game));
       }
    }
 
@@ -388,7 +399,7 @@ public class Main {
    private void printMyGame(JsonElement game, int amount) {
       int price = getCardPrice(game);
       if (amount > 0) {
-         logger.info("(" + pad(getSetPrice(game), 3) + ") " +
+         stdoutln("(" + pad(getSetPrice(game), 3) + ") " +
                pad(amount, 2) + " * " +
                pad(price, 3) + " = " +
                pad(amount * price, 4) + " - " + getGameName(game));
