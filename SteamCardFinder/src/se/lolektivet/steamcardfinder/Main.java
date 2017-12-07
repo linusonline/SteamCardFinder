@@ -31,7 +31,7 @@ import java.util.stream.Stream;
 public class Main {
    private static final int VERSION_MAJOR = 0;
    private static final int VERSION_MINOR = 1;
-   private static final int VERSION_REVISION = 0;
+   private static final int VERSION_REVISION = 1;
    private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION;
 
    private static final String OPTION_READ_FILE = "f";
