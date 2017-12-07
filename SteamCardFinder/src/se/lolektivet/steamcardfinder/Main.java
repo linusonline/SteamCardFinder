@@ -29,6 +29,11 @@ import java.util.stream.Stream;
  * Created by Linus on 2017-03-23.
  */
 public class Main {
+   private static final int VERSION_MAJOR = 0;
+   private static final int VERSION_MINOR = 1;
+   private static final int VERSION_REVISION = 0;
+   private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION;
+
    private static final String OPTION_READ_FILE = "f";
    private static final String OPTION_READ_FILE_LONG = "file";
    private static final String OPTION_FILE_NAME = "n";
@@ -81,6 +86,7 @@ public class Main {
       createOptions();
       parseArgs(args);
       initLogging();
+      printVersionInfo();
       run();
    }
 
@@ -139,6 +145,10 @@ public class Main {
    private void initLogging() {
       Level level = _commandLine.hasOption(OPTION_VERBOSE) ? Level.ALL : Level.INFO;
       LoggingConf.init(false, level);
+   }
+
+   private void printVersionInfo() {
+      logger.info("SteamCardFinder v" + VERSION_STRING);
    }
 
    private void run() throws IOException, ParserConfigurationException, SAXException {
