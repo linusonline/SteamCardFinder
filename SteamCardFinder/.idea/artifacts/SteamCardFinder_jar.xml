@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
   <artifact type="jar" build-on-make="true" name="SteamCardFinder:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/SteamCardFinder_jar</output-path>
+    <output-path>$PROJECT_DIR$</output-path>
     <root id="archive" name="SteamCardFinder.jar">
       <element id="module-output" name="SteamCardFinder" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/gson-2.8.0.jar" path-in-jar="/" />
