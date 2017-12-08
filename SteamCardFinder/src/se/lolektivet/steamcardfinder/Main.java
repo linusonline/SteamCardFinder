@@ -25,6 +25,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static se.lolektivet.steamcardfinder.MyOptions.*;
+
 /**
  * Created by Linus on 2017-03-23.
  */
@@ -33,29 +35,6 @@ public class Main {
    private static final int VERSION_MINOR = 1;
    private static final int VERSION_REVISION = 1;
    private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION;
-
-   private static final String OPTION_READ_FILE = "f";
-   private static final String OPTION_READ_FILE_LONG = "file";
-   private static final String OPTION_FILE_NAME = "n";
-   private static final String OPTION_FILE_NAME_LONG = "filename";
-   private static final String OPTION_GAME_LIMIT = "l";
-   private static final String OPTION_GAME_LIMIT_LONG = "limit";
-   private static final String OPTION_HELP = "h";
-   private static final String OPTION_HELP_LONG = "help";
-   private static final String OPTION_VERBOSE = "v";
-   private static final String OPTION_VERBOSE_LONG = "verbose";
-   private static final String OPTION_SAVE = "s";
-   private static final String OPTION_SAVE_LONG = "save";
-   private static final String OPTION_MY_CARDS = "c";
-   private static final String OPTION_MY_CARDS_LONG = "cards";
-   private static final String OPTION_MY_CARDS_FILE = "d";
-   private static final String OPTION_MY_CARDS_FILE_LONG = "cardsfile";
-   private static final String OPTION_MY_CREDITS = "r";
-   private static final String OPTION_MY_CREDITS_LONG = "credits";
-
-   private static final String DEFAULT_INPUT_FILE = "input.json";
-   private static final String DEFAULT_MY_CARDS_FILE = "mycards.txt";
-   private static final String DEFAULT_EXCLUDED_CARDS_FILE = "excluded.txt";
 
    private static final String INVENTORY_URL = "http://www.steamcardexchange.net/api/request.php?GetInventory";
 
@@ -67,8 +46,8 @@ public class Main {
 
    private final List<JsonElement> allGames = new ArrayList<>();
 
+   private MyOptions _options = new MyOptions();
    private CommandLine _commandLine;
-   private Options _options;
 
    public static void main(String[] args) {
       new Main().tryDoAll(args);
@@ -77,69 +56,16 @@ public class Main {
    private void tryDoAll(String[] args) {
       try {
          doAll(args);
-      } catch (ParseException | IOException | SAXException | ParserConfigurationException e) {
+      } catch (ParseException | IOException e) {
          e.printStackTrace();
       }
    }
 
-   private void doAll(String[] args) throws ParseException, ParserConfigurationException, SAXException, IOException {
-      createOptions();
-      parseArgs(args);
+   private void doAll(String[] args) throws ParseException, IOException {
+      _commandLine = _options.parseArgs(args);
       initLogging();
       printVersionInfo();
       run();
-   }
-
-   private void createOptions() {
-      Option help = Option.builder(OPTION_HELP).longOpt(OPTION_HELP_LONG)
-            .desc("Print this help message").build();
-
-      Option readFile = Option.builder(OPTION_READ_FILE).longOpt(OPTION_READ_FILE_LONG)
-            .desc("Read web page from input file instead of from web.").build();
-
-      Option filename = Option.builder(OPTION_FILE_NAME).longOpt(OPTION_FILE_NAME_LONG)
-            .hasArg().argName("file")
-            .desc("Name of the file to read/write web page from/to. Default is " + DEFAULT_INPUT_FILE).build();
-
-      Option gameLimit = Option.builder(OPTION_GAME_LIMIT).longOpt(OPTION_GAME_LIMIT_LONG)
-            .hasArg().argName("nr")
-            .desc("Max number of games to list.").build();
-
-      Option verbose = Option.builder(OPTION_VERBOSE).longOpt(OPTION_VERBOSE_LONG)
-            .desc("Print verbose information.").build();
-
-      Option save = Option.builder(OPTION_SAVE).longOpt(OPTION_SAVE_LONG)
-            .desc("When reading from web, save webpage to file specified by --" + filename.getLongOpt() + " option. Default is " + DEFAULT_INPUT_FILE).build();
-
-      Option myCards = Option.builder(OPTION_MY_CARDS).longOpt(OPTION_MY_CARDS_LONG)
-            .desc("Read and summarize list of owned game cards. Each line of the list file should be on the form " +
-                  "'<card-amount>:<drop-amount>:<game-name>'. Game name must match the name in the online inventory exactly. Default " +
-                  "file to read from is " + DEFAULT_MY_CARDS_FILE).build();
-
-      Option myCardsFile = Option.builder(OPTION_MY_CARDS_FILE).longOpt(OPTION_MY_CARDS_FILE_LONG)
-            .hasArg().argName("file")
-            .desc("Name of the file to read owned game card list from. Default is " + DEFAULT_MY_CARDS_FILE).build();
-
-      Option myCredits = Option.builder(OPTION_MY_CREDITS).longOpt(OPTION_MY_CREDITS_LONG)
-            .hasArg().argName("credit-amount")
-            .desc("Number of credits you already have in your Steam Card Exchange account.").build();
-
-      _options = new Options();
-
-      _options.addOption(help);
-      _options.addOption(filename);
-      _options.addOption(readFile);
-      _options.addOption(gameLimit);
-      _options.addOption(verbose);
-      _options.addOption(save);
-      _options.addOption(myCards);
-      _options.addOption(myCardsFile);
-      _options.addOption(myCredits);
-   }
-
-   private void parseArgs(String[] args) throws ParseException {
-      CommandLineParser parser = new DefaultParser();
-      _commandLine = parser.parse(_options, args);
    }
 
    private void initLogging() {
@@ -155,10 +81,9 @@ public class Main {
       stdoutln("SteamCardFinder v" + VERSION_STRING);
    }
 
-   private void run() throws IOException, ParserConfigurationException, SAXException {
+   private void run() throws IOException {
       if (_commandLine.hasOption(OPTION_HELP)) {
-         HelpFormatter helpFormatter = new HelpFormatter();
-         helpFormatter.printHelp("SteamCardFinder", _options, true);
+         _options.printHelp();
       } else {
          String fullInput;
          if (_commandLine.hasOption(OPTION_READ_FILE)) {
