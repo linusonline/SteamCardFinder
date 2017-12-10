@@ -87,7 +87,7 @@ public class Analysis {
       stdoutln("");
       stdoutln("------------------------- Cheapest available Card Sets ------------------------");
       stdoutln("");
-      stdoutln("[Setsize / Sets / Cost - Name]");
+      stdoutln("[Cost / Sets / Setsize - Name]");
       finalList.forEach(Analysis::printResult);
    }
 
@@ -103,7 +103,7 @@ public class Analysis {
    }
 
    private static void printResult(JsonElement game) {
-      stdoutln(getUniqueCardsInSet(game) + " / " + getFullSetsAvailable(game) + " / " + getSetPrice(game) + " - " + getGameName(game));
+      stdoutln("    " + getSetPrice(game) + " / " + getFullSetsAvailable(game) + " / " + getUniqueCardsInSet(game) + " - " + getGameName(game));
    }
 
    private void doAnalyzeMyCards(String fileName) throws FileNotFoundException {
@@ -123,27 +123,49 @@ public class Analysis {
       int dropsWorth = myGamesWithInfo.stream().mapToInt(game -> (getMyDrops(game) * getCardPrice(game))).sum();
       int totalWorth = ownedWorth + dropsWorth + credits;
 
-      // TODO: Warn about possibly overstocked cards. Will not be precise based on the info we have,
-      // but good enough to warn when "maxCardStock" is 8.
-      //stdoutln("Sets you own that have overstocked cards:");
+      long overStockedGames = myGamesWithInfo.stream().filter(GameObject::isOverstocked).count();
+      String noOsOwned = "";
+      String noOsDrops = "";
+      String noOsTotal = "";
+      String noOsTotalWithDrops = "";
+      boolean hasOverstocked = false;
+      if (overStockedGames > 0) {
+         int ownedWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyAmount(game) * getCardPrice(game)).sum();
+         int dropWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyDrops(game) * getCardPrice(game)).sum();
+         if (ownedWorth > ownedWorthNoOverstocked) {
+            noOsOwned = " (! " + (ownedWorthNoOverstocked) + ")";
+            noOsTotal = " (! " + (ownedWorthNoOverstocked + credits) + ")";
+         }
+         if (ownedWorth + dropsWorth > ownedWorthNoOverstocked + dropWorthNoOverstocked) {
+            noOsDrops = " (! " + (dropWorthNoOverstocked) + ")";
+            noOsTotalWithDrops = " (! " + (ownedWorthNoOverstocked + dropWorthNoOverstocked + credits) + ")";
+            hasOverstocked = true;
+         }
+      }
 
       stdoutln("");
       stdoutln("");
       stdoutln("");
       stdoutln("----------------------------- My Game Card Summary ----------------------------");
       stdoutln("");
-      stdoutln("[(Set) Cards * Worth = Total - Name]");
+      if (hasOverstocked) {
+         stdoutln("WARNING! The games marked with '!' have some overstocked cards in inventory! Total after '!' excludes these games.");
+      } else {
+         stdoutln("None of your cards are overstocked.");
+      }
+      stdoutln("");
+      stdoutln("[(Set) Cards * Worth = Total - [!] Name]");
       stdoutln("");
       if (totalWorth > 0) {
          if (ownedWorth > 0) {
-            stdoutln("-- OWNED CARDS: " + ownedWorth);
+            stdoutln("-- OWNED CARDS: " + ownedWorth + noOsOwned);
             myGamesWithInfo.forEach(Analysis::printMyOwned);
          } else {
             stdoutln("-- NO OWNED CARDS");
          }
          stdoutln("");
          if (dropsWorth > 0) {
-            stdoutln("-- REMAINING DROPS: " + dropsWorth);
+            stdoutln("-- REMAINING DROPS: " + dropsWorth + noOsDrops);
             myGamesWithInfo.forEach(Analysis::printMyDrops);
          } else {
             stdoutln("-- NO REMAINING DROPS");
@@ -153,32 +175,10 @@ public class Analysis {
             stdoutln("-- CREDITS: " + credits);
             stdoutln("");
          }
-         stdoutln("-- TOTAL: " + totalWorth);
+         stdoutln("-- TOTAL: " + (totalWorth - dropsWorth) + noOsTotal);
+         stdoutln("-- TOTAL INCLUDING DROPS: " + totalWorth + noOsTotalWithDrops);
       } else {
          stdoutln("NO CARDS OR DROPS");
-      }
-
-      long overStockedGames = myGamesWithInfo.stream().filter(GameObject::isOverstocked).count();
-      stdoutln("");
-      if (overStockedGames > 0) {
-         stdoutln("WARNING! The following of your games have overstocked cards in inventory!");
-         myGamesWithInfo.forEach(Analysis::printOverstocked);
-         int ownedWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyAmount(game) * getCardPrice(game)).sum();
-         int dropWorthNoOverstocked = myGamesWithInfo.stream().mapToInt(game -> isOverstocked(game) ? 0 : getMyDrops(game) * getCardPrice(game)).sum();
-         stdoutln("");
-         stdoutln("Excluding possibly overstocked cards:");
-         stdoutln("Owned card worth: " + ownedWorthNoOverstocked);
-         stdoutln("Drops worth: " + dropWorthNoOverstocked);
-         stdoutln("Total worth: " + (ownedWorthNoOverstocked + credits));
-
-      } else {
-         stdoutln("None of your cards are overstocked.");
-      }
-   }
-
-   private static void printOverstocked(JsonElement game) {
-      if (isOverstocked(game)) {
-         stdoutln(getGameName(game));
       }
    }
 
@@ -215,11 +215,12 @@ public class Analysis {
 
    private static void printMyGame(JsonElement game, int amount) {
       int price = getCardPrice(game);
+      String osMarker = isOverstocked(game) ? "!" : " ";
       if (amount > 0) {
          stdoutln("(" + pad(getSetPrice(game), 3) + ") " +
                pad(amount, 2) + " * " +
                pad(price, 3) + " = " +
-               pad(amount * price, 4) + " - " + getGameName(game));
+               pad(amount * price, 4) + " - " + osMarker + " " + getGameName(game));
       }
    }
 
