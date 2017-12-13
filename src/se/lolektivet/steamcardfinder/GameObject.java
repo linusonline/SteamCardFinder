@@ -49,15 +49,27 @@ public class GameObject {
       return getCardPrice(game) * getUniqueCardsInSet(game);
    }
 
+   static int getMaxSetPrice(JsonElement game) {
+      return getLastCardPrice(game) * getUniqueCardsInSet(game);
+   }
+
    static int getCardPrice(JsonElement game) {
       return game.getAsJsonArray().get(1).getAsInt();
+   }
+
+   static int getLastCardPrice(JsonElement game) {
+      return (int)Math.ceil(getCardPrice(game) * 1.5);
+   }
+
+   static int getTotalCardsInStock(JsonElement game) {
+      return game.getAsJsonArray().get(2).getAsInt();
    }
 
    static int getUniqueCardsInSet(JsonElement game) {
       return game.getAsJsonArray().get(3).getAsJsonArray().get(0).getAsInt();
    }
 
-   private static int getUniqueCardsAvailable(JsonElement game) {
+   static int getUniqueCardsAvailable(JsonElement game) {
       return game.getAsJsonArray().get(3).getAsJsonArray().get(1).getAsInt();
    }
 
@@ -66,7 +78,7 @@ public class GameObject {
             game.getAsJsonArray().get(3).getAsJsonArray().get(2).getAsInt();
    }
 
-   private static int getHighestCardStock(JsonElement game) {
+   static int getHighestCardStock(JsonElement game) {
       return game.getAsJsonArray().get(0).getAsJsonArray().get(2).getAsInt();
    }
 
@@ -88,7 +100,7 @@ public class GameObject {
    // [
    //    [<int:ID>,<string:name>,<int:highestStock>,<int:???>,<int:marketable>],
    //    <int:cardprice>,
-   //    <int:???>,
+   //    <int:totalNrOfCards>,
    //    [<int:setsize>,<int:uniqueAvailable>,<int:setsAvailable>]
    // ],
 

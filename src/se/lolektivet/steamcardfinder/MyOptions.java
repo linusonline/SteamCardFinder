@@ -21,10 +21,13 @@ public class MyOptions {
    private static final String OPTION_MY_CARDS_FILE_LONG = "cardsfile";
    static final String OPTION_MY_CREDITS = "r";
    private static final String OPTION_MY_CREDITS_LONG = "credits";
+   static final String OPTION_MY_WANTEDS = "w";
+   private static final String OPTION_MY_WANTEDS_LONG = "wanted";
 
    static final String DEFAULT_INPUT_FILE = "input.json";
    static final String DEFAULT_MY_CARDS_FILE = "mycards.txt";
    static final String DEFAULT_EXCLUDED_CARDS_FILE = "excluded.txt";
+   static final String DEFAULT_WANTED_CARDS_FILE = "wanted.txt";
 
    private Options _options;
 
@@ -62,6 +65,10 @@ public class MyOptions {
             .hasArg().argName("credit-amount")
             .desc("Number of credits you already have in your Steam Card Exchange account.").build();
 
+      Option myWanted = Option.builder(OPTION_MY_WANTEDS).longOpt(OPTION_MY_WANTEDS_LONG)
+            .desc("Read wanted card sets from " + DEFAULT_WANTED_CARDS_FILE + " and print useful info about them. Each " +
+                  "line of the file should have a game name exactly matching the name in the online inventory.").build();
+
       _options = new Options();
 
       _options.addOption(help);
@@ -73,6 +80,7 @@ public class MyOptions {
       _options.addOption(myCards);
       _options.addOption(myCardsFile);
       _options.addOption(myCredits);
+      _options.addOption(myWanted);
    }
 
    CommandLine parseArgs(String[] args) throws ParseException {

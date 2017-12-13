@@ -51,13 +51,20 @@ public class Analysis {
          allGames.add(gameElement);
       }
 
+      try {
+         if (_commandLine.hasOption(OPTION_MY_WANTEDS)) {
+            doWantedGames();
+         }
+      } catch (FileNotFoundException e) {
+         logger.warning("Couldn't find wanted.txt to read.");
+      }
+
       List<JsonElement> sortedRelevantGames = allGames.stream()
             .filter(Analysis::moreThanOneSet)
             .sorted(Analysis::compareGames)
             .collect(Collectors.toList());
 
       try {
-         // TODO: Document this feature.
          FileInputStream fis = new FileInputStream(DEFAULT_EXCLUDED_CARDS_FILE);
          BufferedReader excludesFile = new BufferedReader(new InputStreamReader(fis));
          List<String> excludedGames = excludesFile.lines().collect(Collectors.toList());
@@ -87,7 +94,7 @@ public class Analysis {
       stdoutln("");
       stdoutln("------------------------- Cheapest available Card Sets ------------------------");
       stdoutln("");
-      stdoutln("[Cost / Sets / Setsize - Name]");
+      stdoutln("[Set Cost / Sets / Set Size - Name]");
       finalList.forEach(Analysis::printResult);
    }
 
@@ -106,12 +113,44 @@ public class Analysis {
       stdoutln("    " + getSetPrice(game) + " / " + getFullSetsAvailable(game) + " / " + getUniqueCardsInSet(game) + " - " + getGameName(game));
    }
 
+   private void doWantedGames() throws FileNotFoundException {
+      FileInputStream fis = new FileInputStream("wanted.txt");
+      BufferedReader wantedCardsFile = new BufferedReader(new InputStreamReader(fis));
+      List<JsonElement> wantedGames = wantedCardsFile.lines()
+            .map(Analysis::lineToWantedGame)
+            .filter(Objects::nonNull)
+            .flatMap(wantedGame -> allGames.stream()
+                  .filter(game -> gamesEqual(wantedGame, game)))
+            .collect(Collectors.toList());
+      stdoutln("");
+      stdoutln("");
+      stdoutln("");
+      stdoutln("----------------------------- My Wanted Card Sets -----------------------------");
+      stdoutln("");
+      stdoutln("[Set Cost / Sets (Unique cards available) / Total cards in stock (highest stock of any one card) - Name]");
+      wantedGames.forEach(Analysis::printWanted);
+   }
+
+   private static void printWanted(JsonElement game) {
+      stdoutln(pad(getSetPrice(game), 3) + "-" + pad(getMaxSetPrice(game), 3) + " / " +
+            getFullSetsAvailable(game) + (getFullSetsAvailable(game) < 1 ? " (" + pad(getUniqueCardsAvailable(game), 2) + ")" : "     ") + " / " +
+            pad(getTotalCardsInStock(game), 3) + " (" + getHighestCardStock(game) + ") - " + getGameName(game));
+   }
+
+   private static JsonObject lineToWantedGame(String line) {
+      //if (line.isEmpty() || line.charAt(0) == '#') {
+      //   return null;
+      //}
+      return createMyGame(line, 0, 0);
+   }
+
+
    private void doAnalyzeMyCards(String fileName) throws FileNotFoundException {
       FileInputStream fis = new FileInputStream(fileName);
       BufferedReader myCardsFile = new BufferedReader(new InputStreamReader(fis));
 
       List<JsonElement> myGamesWithInfo = myCardsFile.lines()
-            .map(Analysis::lineToGame)
+            .map(Analysis::lineToMyGame)
             .filter(Objects::nonNull)
             .flatMap(myGame -> allGames.stream()
                   .filter(game -> gamesEqual(myGame, game))
@@ -182,25 +221,32 @@ public class Analysis {
       }
    }
 
-   private static JsonObject lineToGame(String line) {
-      int colonPos1 = line.indexOf(':');
-      if (colonPos1 <= 0) {
+   private static JsonObject lineToMyGame(String line) {
+      try {
+         if (line.charAt(0) == '#') {
+            return null;
+         }
+         int colonPos1 = line.indexOf(':');
+         if (colonPos1 <= 0) {
+            return null;
+         }
+         int amount = Integer.parseInt(line.substring(0, colonPos1));
+         if (amount < 0) {
+            return null;
+         }
+         int colonPos2 = line.indexOf(':', colonPos1 + 1);
+         int drops = Integer.parseInt(line.substring(colonPos1 + 1, colonPos2));
+         if (drops < 0) {
+            return null;
+         }
+         String name = line.substring(colonPos2 + 1);
+         if (name.isEmpty()) {
+            return null;
+         }
+         return createMyGame(name, amount, drops);
+      } catch (NumberFormatException ignore) {
          return null;
       }
-      int amount = Integer.parseInt(line.substring(0, colonPos1));
-      if (amount < 0) {
-         return null;
-      }
-      int colonPos2 = line.indexOf(':', colonPos1 + 1);
-      int drops = Integer.parseInt(line.substring(colonPos1 + 1, colonPos2));
-      if (drops < 0) {
-         return null;
-      }
-      String name = line.substring(colonPos2 + 1);
-      if (name.isEmpty()) {
-         return null;
-      }
-      return createMyGame(name, amount, drops);
    }
 
    private static void printMyOwned(JsonElement game) {
@@ -225,13 +271,12 @@ public class Analysis {
    }
 
    static String pad(int nr, int minSpaces) {
-      String result = "";
-      while (nr < Math.pow(10, minSpaces - 1)) {
-         result += " ";
+      String spaces = "";
+      while (nr < Math.pow(10, minSpaces - 1) && minSpaces > 1) {
+         spaces += " ";
          minSpaces--;
       }
-      result += nr;
-      return result;
+      return spaces + nr;
    }
 
    static void stdoutln(String message) {

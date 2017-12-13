@@ -26,4 +26,16 @@ public class TestPad {
       String res = Analysis.pad(1, 2);
       assertEquals(" 1", res);
    }
+
+   @Test
+   public void testPadZero1() {
+      String res = Analysis.pad(0, 1);
+      assertEquals("0", res);
+   }
+
+   @Test
+   public void testPadZero2() {
+      String res = Analysis.pad(0, 2);
+      assertEquals(" 0", res);
+   }
 }
