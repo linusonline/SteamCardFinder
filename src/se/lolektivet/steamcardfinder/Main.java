@@ -16,7 +16,7 @@ public class Main {
    private static final int VERSION_MAJOR = 1;
    private static final int VERSION_MINOR = 0;
    private static final int VERSION_REVISION = 0;
-   private static final String VERSION_SUFFIX = "";
+   private static final String VERSION_SUFFIX = "-POST";
    private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION + VERSION_SUFFIX;
 
    private final MyOptions _options = new MyOptions();
