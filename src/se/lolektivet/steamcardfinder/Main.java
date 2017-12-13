@@ -13,10 +13,11 @@ import static se.lolektivet.steamcardfinder.MyOptions.OPTION_VERBOSE;
  * Created by Linus on 2017-03-23.
  */
 public class Main {
-   private static final int VERSION_MAJOR = 0;
-   private static final int VERSION_MINOR = 1;
-   private static final int VERSION_REVISION = 1;
-   private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION;
+   private static final int VERSION_MAJOR = 1;
+   private static final int VERSION_MINOR = 0;
+   private static final int VERSION_REVISION = 0;
+   private static final String VERSION_SUFFIX = "";
+   private static final String VERSION_STRING = VERSION_MAJOR + "." + VERSION_MINOR + "." + VERSION_REVISION + VERSION_SUFFIX;
 
    private final MyOptions _options = new MyOptions();
    private CommandLine _commandLine;
